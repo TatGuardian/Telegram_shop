@@ -6,9 +6,9 @@ import threading
 from requests import get
 from time import sleep
 
-bot = TeleBot('5333068001:AAFNFS52ermexDVjJq-sGlaMp3h2mTpLGLg')
-db = pymysql.connect(database='shop_seashop', host="localhost", port=3306, user="root",
-                     password="root")  # have to do some research- don't quite understand
+bot = TeleBot('TOKEN')
+db = pymysql.connect(database='', host="localhost", port=, user="",
+                     password="")
 lock = threading.Lock()  # locks threading until it is unlocked
 sql = db.cursor()
 
