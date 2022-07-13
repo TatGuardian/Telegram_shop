@@ -14,12 +14,14 @@ sql = db.cursor()
 
 # working with database
 sql.execute("""CREATE TABLE IF NOT EXISTS users (id BIGINT, nick TEXT, cash INT, access INT, bought INT)""")
-sql.execute("""CREATE TABLE IF NOT EXISTS shop (id INT, name TEXT, price INT, goods TEXT, consumer TEXT)""")
+sql.execute("""CREATE TABLE IF NOT EXISTS shop (id INT NOT NULL, name TEXT, price INT, goods TEXT, consumer TEXT)""")
+sql.execute(
+    """CREATE TABLE IF NOT EXISTS shop_temporary (id INT NOT NULL, amount INT, price INT, goods TEXT, consumer TEXT)""")
 db.commit()
 
 
 def tocat(message, chatid):
-    cid=chatid
+    cid = chatid
     try:
         keyboard = types.InlineKeyboardMarkup(row_width=1)
         keyboard.add(
@@ -32,6 +34,30 @@ def tocat(message, chatid):
         bot.send_message(message.chat.id, reply_markup=keyboard, text="Каталог товаров:")
     except:
         bot.send_message(cid, f"unknown mistake")
+
+
+def memo(message):
+    global per
+    try:
+        per = float(message.text)
+        flag = add_to_db(tovar, per, consumer_id)
+        if flag == "unknown mistake":
+            bot.send_message(chat_id=cid, text="unknown mistake")
+    except ValueError:
+        bot.send_message(chat_id=cid, text="unknown mistake")
+
+
+def add_to_db(callback, amount, consumer_id):
+    try:
+        product = callback.data.split('_')[1]
+        sql.execute(f"""SELECT cost FROM goods WHERE name='{product}'""")
+        query = sql.fetchone()[0]
+        price = float(query) * amount
+        sql.execute(f"INSERT INTO shop_temporary(amount, price, goods, consumer) VALUES ({amount}, {price}, '{product}', {consumer_id})")
+        db.commit()
+    except:
+        return "unknown mistake"
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -152,7 +178,7 @@ def catalogue(callback):  # добавить айди к каждому това
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
             bot.send_photo(caption="Камчатский краб\nЦена: 2200 ₽ за 1 кг", chat_id=cid,
-                           photo=open("C:/Users/user/PycharmProjects/Telexram/shop/pictures/crab.jpg", "rb"),
+                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/crab.jpg", "rb"),
                            reply_markup=keyboard)
         except:
             bot.send_message(cid, f"unknown mistake")
@@ -167,7 +193,7 @@ def catalogue(callback):  # добавить айди к каждому това
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
             bot.send_photo(caption="Лосось\nЦена: 1600 ₽ за 1 кг", chat_id=cid,
-                           photo=open("C:/Users/user/PycharmProjects/Telexram/shop/pictures/salmon.jpg", "rb"),
+                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/salmon.jpg", "rb"),
                            reply_markup=keyboard)
         except:
             bot.send_message(cid, f"unknown mistake")
@@ -182,7 +208,7 @@ def catalogue(callback):  # добавить айди к каждому това
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
             bot.send_photo(caption="Икра красная (форель)\nЦена: 2880 ₽ за 500г", chat_id=cid,
-                           photo=open("C:/Users/user/PycharmProjects/Telexram/shop/pictures/caviar_forel.jpg", "rb"),
+                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/caviar_forel.jpg", "rb"),
                            reply_markup=keyboard)
         except:
             bot.send_message(cid, f"unknown mistake")
@@ -196,7 +222,7 @@ def catalogue(callback):  # добавить айди к каждому това
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
             bot.send_photo(caption="Морской ёж\nЦена: 200 ₽ за шт", chat_id=cid,
-                           photo=open("C:/Users/user/PycharmProjects/Telexram/shop/pictures/hedgehog.jpg", "rb"),
+                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/hedgehog.jpg", "rb"),
                            reply_markup=keyboard)
         except:
             bot.send_message(cid, f"unknown mistake")
@@ -210,6 +236,27 @@ def to_catalogue(callback):
         tocat(msg, cid)
     except:
         bot.send_message(cid, f"unknown mistake")
+
+
+@bot.callback_query_handler(func=lambda call: "add" in call.data)
+def add_to_list(callback):
+    # global msg, cid
+    global tovar, msg, consumer_id, cid
+    tovar = callback
+    msg = callback.message
+    cid = msg.chat.id
+    consumer_id = callback.from_user.id  # схуяли тут другой айди # callback.from_user.id
+    try:
+        send = bot.send_message(cid,
+                                'Введите количество в килограммах (для дробных значений, пожалуйста, используйте точку)')  # на этом моменте отправляется сообщение
+        bot.register_next_step_handler(send, memo)  # почему-то не ждет сообщение от пользователя
+        # amount = per  # сразу переходит к этому блоку и поднимает ошибку
+        # flag = add_to_db(callback, amount, consumer_id)
+        # if flag == "unknown mistake":
+        #   raise TypeError
+    except:
+        bot.send_message(cid, f"unknown mistake")
+
 
 @bot.message_handler(content_types=['text'])
 def mylist(message):
