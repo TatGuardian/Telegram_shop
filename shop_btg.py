@@ -1,6 +1,8 @@
 import telebot
 import pymysql
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
+from MKAD_Neil import is_mkad_zone
 from telebot import types, TeleBot
 import threading
 from requests import get
@@ -27,7 +29,7 @@ def tocat(message, chatid):
         keyboard.add(
             types.InlineKeyboardButton(text="Краб", callback_data="catalog_crab"),
             types.InlineKeyboardButton(text="Лосось", callback_data="catalog_salmon"),
-            types.InlineKeyboardButton(text="Икра", callback_data="catalog_caviar_forel"),
+            types.InlineKeyboardButton(text="Икра", callback_data="catalog_caviar-forel"),
             types.InlineKeyboardButton(text="Морской ёж", callback_data="catalog_hedgehog")
         )
         bot.delete_message(message.chat.id, message_id=message.id)
@@ -53,10 +55,18 @@ def add_to_db(callback, amount, consumer_id):
         sql.execute(f"""SELECT cost FROM goods WHERE name='{product}'""")
         query = sql.fetchone()[0]
         price = float(query) * amount
-        sql.execute(f"INSERT INTO shop_temporary(amount, price, goods, consumer) VALUES ({amount}, {price}, '{product}', {consumer_id})")
+        sql.execute(
+            f"INSERT INTO shop_temporary(amount, price, goods, consumer) VALUES ({amount}, {price}, '{product}', {consumer_id})"
+        )
         db.commit()
     except:
         return "unknown mistake"
+
+
+def get_locat(message):
+    bot.send_message(chat_id=417753129, text=f"{message.location.latitude}")
+    #return is_mkad_zone(longitude, latitude)
+
 
 
 @bot.message_handler(commands=['start'])
@@ -163,7 +173,7 @@ def mylist(message):
 
 
 @bot.callback_query_handler(
-    func=lambda c: c.data == "catalog_crab" or c.data == "catalog_salmon" or c.data == "catalog_caviar_forel"
+    func=lambda c: c.data == "catalog_crab" or c.data == "catalog_salmon" or c.data == "catalog_caviar-forel"
                    or c.data == "catalog_hedgehog")
 def catalogue(callback):  # добавить айди к каждому товару
     cid = callback.message.chat.id
@@ -198,12 +208,12 @@ def catalogue(callback):  # добавить айди к каждому това
         except:
             bot.send_message(cid, f"unknown mistake")
 
-    elif callback.data == "catalog_caviar_forel":
+    elif callback.data == "catalog_caviar-forel":
         try:
             bot.delete_message(message_id=callback.message.id, chat_id=cid)
             keyboard = types.InlineKeyboardMarkup(row_width=2)
             keyboard.add(
-                types.InlineKeyboardButton(text="Добавить в корзину", callback_data="add_caviar_forel"),
+                types.InlineKeyboardButton(text="Добавить в корзину", callback_data="add_caviar-forel"),
                 # types.InlineKeyboardButton(text=""),
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
@@ -221,8 +231,8 @@ def catalogue(callback):  # добавить айди к каждому това
                 # types.InlineKeyboardButton(text=""),
                 types.InlineKeyboardButton(text="Назад в каталог", callback_data="to_catalogue")
             )
-            bot.send_photo(caption="Морской ёж\nЦена: 200 ₽ за шт", chat_id=cid,
-                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/hedgehog.jpg", "rb"),
+            bot.send_photo(caption="Икра морского ежа\nЦена: 590 ₽ за 100г", chat_id=cid,
+                           photo=open("C:/Users/user/PycharmProjects/Newshop/pictures/hhedgehog-cav.jpeg", "rb"),
                            reply_markup=keyboard)
         except:
             bot.send_message(cid, f"unknown mistake")
@@ -249,11 +259,7 @@ def add_to_list(callback):
     try:
         send = bot.send_message(cid,
                                 'Введите количество в килограммах (для дробных значений, пожалуйста, используйте точку)')  # на этом моменте отправляется сообщение
-        bot.register_next_step_handler(send, memo)  # почему-то не ждет сообщение от пользователя
-        # amount = per  # сразу переходит к этому блоку и поднимает ошибку
-        # flag = add_to_db(callback, amount, consumer_id)
-        # if flag == "unknown mistake":
-        #   raise TypeError
+        bot.register_next_step_handler(send, memo)
     except:
         bot.send_message(cid, f"unknown mistake")
 
@@ -286,14 +292,19 @@ def mylist(message):
             keyboard.add(
                 types.InlineKeyboardButton(text="Краб", callback_data="catalog_crab"),
                 types.InlineKeyboardButton(text="Лосось", callback_data="catalog_salmon"),
-                types.InlineKeyboardButton(text="Икра", callback_data="catalog_caviar_forel"),
+                types.InlineKeyboardButton(text="Икра", callback_data="catalog_caviar-forel"),
                 types.InlineKeyboardButton(text="Морской ёж", callback_data="catalog_hedgehog")
             )
             bot.send_message(message.chat.id, reply_markup=keyboard, text="Каталог товаров:")
         except:
             bot.send_message(cid, f"unknown mistake")
     elif message.text == 'Доставка':
-        pass
+        markup_request = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True).add(
+            KeyboardButton(text="Поделиться своим местоположением", request_location=True)
+        )
+        bot.send_message(message.chat.id, reply_markup=markup_request, text="Поделитесь, пожалуйста, своим местоположением")
+        bot.register_next_step_handler(message, get_locat) # func doesn't return anything plus if we do not order delivery to the place where we're currently located???
+
     elif message.text == 'Оставить отзыв':
         pass
     else:
