@@ -64,7 +64,7 @@ def add_to_db(callback, amount, consumer_id):
 
 
 def get_locat(message):
-    bot.send_message(chat_id=417753129, text=f"{message.location.latitude}")
+    bot.send_message(chat_id=xxx, text=f"{message.location.latitude}") # needs altering
     #return is_mkad_zone(longitude, latitude)
 
 
